@@ -43,3 +43,45 @@ int allocate_tunnel(char *dev, int flags) {
 	strcpy(dev, ifr.ifr_name);
 	return fd;
 }
+
+/**Continuously reads from the tap and prints the string it gets from tap
+ * Takes no parameters
+ * Will take up to 500 bytes from tap otherwise segmentation fault,
+ *    but the 500 bytes is adjustable
+ * Exits entire program if for some reason program can't open tap*/
+char * read(){
+	char *if_name = (char*)malloc(sizeof(char) * 16);
+	strcpy(if_name, "tap0");
+	int tap_fd;
+	//Malloc for the string that is taken from the tap (takes up to 500 bytes)
+	char *tapEntry = (char*)malloc(sizeof(char) * 500); 
+	
+	
+	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
+		perror("Opening tap interface failed! \n");
+		exit(1);
+	}
+
+	read(tap_fd, tapEntry,500);
+	
+	//free
+	free(tapEntry);
+}
+
+/**Writes messages into the tap
+ * There are no parameters
+ Exits entire program if for some reason program can't open tap*/
+char * write(char *msg){
+	char *if_name = (char*)malloc(sizeof(char) * 16);
+	strcpy(if_name, "tap0");
+	int tap_fd;
+	
+	
+	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
+		perror("Opening tap interface failed! \n");
+		exit(1);
+	}
+
+	write(tap_fd, msg, sizeof(msg));
+
+}
