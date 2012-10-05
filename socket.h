@@ -8,4 +8,3 @@
 int openSocket(int port);
 int connectToServer(int sock, int port, char * name);
 
-//this is joe playing with github ill delete this comment in a little bit
