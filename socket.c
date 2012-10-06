@@ -25,7 +25,7 @@ int connectToServer(int sock, int port, char * name) { /*creates an outgoing con
 	return 1;
 }
 
-int acceptConnection(int sock) { /*accepts an inbound connection on the specified socket. This function should not return unless broken from, or gives an error (such as a fail listen or fail accept). Upon accepting the new connection, a new socket is created to work with.*/
+int acceptConnection(int sock, int(* functionPointer)(int)) { /*accepts an inbound connection on the specified socket. This function should not return unless broken from, or gives an error (such as a fail listen or fail accept). Upon accepting the new connection, a new socket is created to work with.*/
 	socklen_t alen;
 	struct sockaddr_in my_addr;
 	struct sockaddr_in client_addr;
@@ -44,6 +44,7 @@ int acceptConnection(int sock) { /*accepts an inbound connection on the specifie
 				return -2;
 			}
 			/*INSERT NEW THREAD HERE FOR THE SOCKET TO TALK TO - USE ACCEPTEDSOCKET*/
+			/*JOHN FINISH THIS OUT, USE THE FUNCTIONPOINTER PASSED INTO ACCEPTCONNECTION TO SPAWN THE THREAD*/
 		}
 	}
 	return 0;
