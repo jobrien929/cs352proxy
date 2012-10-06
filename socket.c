@@ -1,5 +1,5 @@
 
-int openSocket(int port) {
+int openSocket(int port) { /*This creates a generic socket, that performs asynchronously, using whatever address the machine wants to give it, on the port given*/
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in myaddr;
 	memset((char *)&myaddr, 0, sizeof(myaddr));
@@ -8,10 +8,10 @@ int openSocket(int port) {
 	myaddr.sin_port = htons(port);
 	bind(sock, (struct sockaddr *)&myaddr, sizeof(myaddr));
 	fcntl(sock, F_SETFF, FNDELAY); /*THIS SOCKET WILL NOW PERFORM ASYNCHRONOUSLY*/
-	return sock;
+	return sock; /*returns the FD of the socket*/
 }
 
-int connectToServer(int sock, int port, char * name) {
+int connectToServer(int sock, int port, char * name) { /*creates an outgoing connection, using the given socket, the port of the away machine, and the IP address (e.g. 198.162.2.2) of the remote machine. Returns 0 on failure, 1 on success*/
 	struct sockaddr_in servaddr;
 	memset((char *_)&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
@@ -24,4 +24,27 @@ int connectToServer(int sock, int port, char * name) {
 	}
 	return 1;
 }
+
+int acceptConnection(int sock) { /*accepts an inbound connection on the specified socket. This function should not return unless broken from, or gives an error (such as a fail listen or fail accept). Upon accepting the new connection, a new socket is created to work with.*/
+	socklen_t alen;
+	struct sockaddr_in my_addr;
+	struct sockaddr_in client_addr;
+	int sockoptval = 1;
+	int acceptedsocket;
 	
+	if (listen(svc, 10) < 0) {
+		perror("listen failed");
+		return -1;
+	}
+	
+	while (1) {
+		while ((acceptedsocket = accept(sock, (struct sockaddr *)&client_addr, &alen)) < 0) {
+			if ((errno != ECHILD) && (errno != ERESTART) && (errno != EINTR)) {
+				perror("accept failed");
+				return -2;
+			}
+			/*INSERT NEW THREAD HERE FOR THE SOCKET TO TALK TO - USE ACCEPTEDSOCKET*/
+		}
+	}
+	return 0;
+}
