@@ -76,7 +76,7 @@ char *readTap(int tap_fd){
 			exit(1);
 		}
 	}
-	
+	 
 	return tapEntry
 }
 
