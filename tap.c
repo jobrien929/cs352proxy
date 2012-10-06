@@ -44,44 +44,52 @@ int allocate_tunnel(char *dev, int flags) {
 	return fd;
 }
 
-/**Continuously reads from the tap and prints the string it gets from tap
- * Takes no parameters
- * Will take up to 500 bytes from tap otherwise segmentation fault,
- *    but the 500 bytes is adjustable
- * Exits entire program if for some reason program can't open tap*/
-char * read(){
+/**opens the tap connection
+ * returns the tap handle
+ * DONT FORGET TO CLOSE TAP using close(tap_fd)*/
+void openTap(){
 	char *if_name = (char*)malloc(sizeof(char) * 16);
 	strcpy(if_name, "tap0");
 	int tap_fd;
+	
+	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
+		perror("Opening tap interface failed! \n");
+		exit(1);
+	}
+	
+	return tap_fd;
+}
+
+/**Continuously reads from the tap and returns the string it gets from tap
+ * Takes the handle of the tap as a parameter for tap_fd
+ * Will take up to 500 bytes from tap otherwise segmentation fault,
+ *    but the 500 bytes is adjustable
+ * User must remember to free the return
+ * Also assumes tap was already opened*/
+char *readTap(int tap_fd){
 	//Malloc for the string that is taken from the tap (takes up to 500 bytes)
 	char *tapEntry = (char*)malloc(sizeof(char) * 500); 
 	
-	
-	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
-		perror("Opening tap interface failed! \n");
-		exit(1);
+	while(1){
+		if(read(tap_fd, tapEntry,500) < 0){
+			printf("Error: Could not read from tap\n");
+			exit(1);
+		}
 	}
-
-	read(tap_fd, tapEntry,500);
 	
-	//free
-	free(tapEntry);
+	return tapEntry
 }
 
 /**Writes messages into the tap
- * There are no parameters
- Exits entire program if for some reason program can't open tap*/
-char * write(char *msg){
-	char *if_name = (char*)malloc(sizeof(char) * 16);
-	strcpy(if_name, "tap0");
-	int tap_fd;
-	
-	
-	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
-		perror("Opening tap interface failed! \n");
+ * msg = message that needs to be written to the tap
+ * tap_fd = the handle of the tap
+ Assumes the tap was already open*/
+void writeTap(char *msg, int tap_fd){
+
+
+	if(write(tap_fd, msg, sizeof(msg)) < 0){
+		printf("Error: Could not read from tap\n");
 		exit(1);
 	}
-
-	write(tap_fd, msg, sizeof(msg));
-
+	
 }
