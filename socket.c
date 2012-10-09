@@ -1,4 +1,6 @@
-int openSocket(int port) { /*This creates a generic socket, that performs asynchronously, using whatever address the machine wants to give it, on the port given*/
+#include "socket.h"
+
+int openSocket(int port) { /*This creates a generic socket, using whatever address the machine wants to give it, on the port given*/
 	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in myaddr;
 	memset((char *)&myaddr, 0, sizeof(myaddr));
@@ -6,7 +8,7 @@ int openSocket(int port) { /*This creates a generic socket, that performs asynch
 	myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	myaddr.sin_port = htons(port);
 	bind(sock, (struct sockaddr *)&myaddr, sizeof(myaddr));
-	fcntl(sock, F_SETFF, FNDELAY); /*THIS SOCKET WILL NOW PERFORM ASYNCHRONOUSLY*/
+	//fcntl(sock, F_SETFF, FNDELAY); /*THIS SOCKET WILL NOW PERFORM ASYNCHRONOUSLY*/
 	return sock; /*returns the FD of the socket*/
 }
 
@@ -15,8 +17,7 @@ int connectToServer(int sock, int port, char * name) { /*creates an outgoing con
 	memset((char *_)&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(port);
-	
-	memcpy((void *)&servaddr.sin_addr, name, sizeof(name));
+	servaddr.sin_addr.s_addr = inet_addr(name);
 	
 	if (connect(sock, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
 		return 0;
@@ -24,7 +25,7 @@ int connectToServer(int sock, int port, char * name) { /*creates an outgoing con
 	return 1;
 }
 
-int acceptConnection(int sock, int(* functionPointer)(int)) { /*accepts an inbound connection on the specified socket. This function should not return unless broken from, or gives an error (such as a fail listen or fail accept). Upon accepting the new connection, a new socket is created to work with.*/
+int acceptConnection(int sock) { //accepts an inbound connection on the specified socket. This accepts ONLY 1 connection request and returns the socket which does the communication on succes, exits the entire program upon failure
 	socklen_t alen;
 	struct sockaddr_in my_addr;
 	struct sockaddr_in client_addr;
@@ -36,13 +37,11 @@ int acceptConnection(int sock, int(* functionPointer)(int)) { /*accepts an inbou
 		exit(1);
 	}
 	
-	//this loop will allow more vms to connect to this computer
-	while ((acceptedsocket = accept(sock, (struct sockaddr *)&client_addr, &alen)) < 0) {
-		
-		//Insert code here	
-	}
+	acceptedsocket = accept(sock, (struct sockaddr *)&client_addr, &alen);
 	
-	perror("accept failed");
-	exit(2);
-		
+	if(acceptsocket < 0){
+		perror("accept failed");
+		exit(2);
+	}
+	return acceptsocket;		
 }

@@ -1,20 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <linux/if_tun.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/select.h>
-#include <sys/time.h>
+#include "tap.h"
 
 /**************************************************
  * allocate_tunnel: 
@@ -47,15 +31,17 @@ int allocate_tunnel(char *dev, int flags) {
 /**opens the tap connection
  * returns the tap handle
  * DONT FORGET TO CLOSE TAP using close(tap_fd)*/
-void openTap(){
+int openTap(char * tapName){
 	char *if_name = (char*)malloc(sizeof(char) * 16);
-	strcpy(if_name, "tap0");
+	strcpy(if_name, tapName);
 	int tap_fd;
 	
 	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
 		perror("Opening tap interface failed! \n");
 		exit(1);
 	}
+	
+	free(ifname);
 	
 	return tap_fd;
 }

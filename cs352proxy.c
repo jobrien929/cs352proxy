@@ -1,0 +1,85 @@
+#include "tap.h"
+#include "socket.h"
+
+int main(int argc, char ** argv){
+		//Determins the port of the remote server and local server
+		//If device is the client the local port is the same as the the remote port
+		//since the local port isn't specified
+		//ie. port on server = port on this device
+		int port;
+		if (argc == 2){
+			port = atoi(argv[1]);
+		} else if (argc == 3){
+			port = atoi(argv[2]);
+		} else {
+			printf("Error: You entered something incorrectly for the arguments");
+			exit(1);
+		}
+		
+		
+		
+	
+	
+		//opens the tap
+		//exits entire program upon failure to open tap
+		int tapID;					//Id / handle of the tap
+		if (argc ==2){
+			tapID = openTap(argv[2];
+		}else{
+			tapID = openTap(argv[3]);
+		}
+		
+		//opens a socket
+		int socketID = openSocket(port);		//ID / handle of the socket
+		
+		
+		
+		
+		
+		
+		//if device is server then it waits for connection and accepts it
+		//else it establishes a connection
+		int commSocket = socketID; 
+		if(argc == 2){		//If device is server
+			commSocket = acceptConnection(socketID);
+		} else{		//If device is client
+			//Checks if the 3rd argument is in DNS format or IPV4
+			char *IP = malloc(sizeof(char)*500);
+			char *IPReal = IP
+			if(atoi(argv[3])==0){
+				//Converts from DNS format to IPV4
+				struct hostent *converter;
+				converter = gethostbyname(argv[3]);
+				inet_ntop(converter->h_addrtype,converter->h_name,IP,INET_ADDRSTRLEN);
+			}else{
+				IPReal = argv[3];
+			}
+			
+			if(connectToServer(commSocket, argv[s], IPReal) == 0){
+					printf("ERROR: Could not connect to server exiting program");
+					exit(1);
+			}
+			free IP;
+		}
+		
+		
+		
+		
+		
+		//Begins to Send and receive messages to each other
+		
+		
+		
+		
+		
+		
+		
+		//Closes Socket and tap
+		close(tapID);
+		close(socketID);
+		if (argc == 2){
+			close(commSocket);
+		}
+		
+		
+}
