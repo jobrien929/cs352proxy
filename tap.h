@@ -31,13 +31,13 @@ typedef struct _datagram{
 	char data[500];
 } datagram;
 
-/**Continuously reads from the tap and returns the string it gets from tap
+/**Continuously reads from the tap and sends what it read into the socket
+ * Only returns if something goes wrong otherwise loops forever
  * Takes the handle of the tap as a parameter for tap_fd
  * Will take up to 500 bytes from tap otherwise segmentation fault,
  *    but the 500 bytes is adjustable
- * User must remember to free the return
  * Also assumes tap was already opened*/
-char *readTap(int tap_fd);
+int readTap(int tap_fd, int socketID);
 
 /**opens the tap connection
  * returns the tap handle
@@ -45,10 +45,11 @@ char *readTap(int tap_fd);
 int openTap(char * tapName);
 
 /**Writes messages into the tap
- * msg = message that needs to be written to the tap
+ * socketID = socket to wait for message
  * tap_fd = the handle of the tap
+ * Returns a 1 upon error and returns a 0 upon success
  Assumes the tap was already open*/
-void writeTap(datagram msg, int tap_fd);
+void writeTap(int socketID, int tap_fd);
 
 
 
