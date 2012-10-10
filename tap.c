@@ -1,6 +1,8 @@
 #include "tap.h"
 #include "socket.h"
 
+
+
 /**************************************************
  * allocate_tunnel: 
  * open a tun or tap device and returns the file
@@ -42,7 +44,7 @@ int openTap(char * tapName){
 		exit(1);
 	}
 	
-	free(ifname);
+	free(if_name);
 	
 	return tap_fd;
 }
@@ -61,24 +63,30 @@ int readTap(int tap_fd, int socketID){
 	while(1){
 		//Waits till tap is ready to be read from
 		FD_ZERO(&readfds);
-		FD_SET(tap_fd, readfds);
-		select(tap_fd+1, &readfs, NULL, NULL, NULL);
+		FD_SET(tap_fd, &readfds);
+		select(tap_fd+1, &readfds, NULL, NULL, NULL);
 		
-		unit32_t nbits = 0;				//Number of bytes read from the tap
-		if((nbits = read(tap_fd, d.data,500)) < 0){
+		//reads from tap
+		pthread_mutex_lock(&tapMu);			//Locks tap for only reading from tap
+		short nbits = read(tap_fd, d.data,2044);
+		pthread_mutex_unlock(&tapMu);		//Unlocks tap
+		
+		if(nbits < 0){
 			printf("Error: Could not read from tap\n");
 			close(tap_fd);
 			return 1;
 		}
 		//Headers for file
 		//type:
-		unit32_t vlanID = %0xABCD;
-		d.type = htonl(vlanID);
+		short vlanID = 0xABCD;
+		d.type = htons(vlanID);
 		//length: (this is taken in bytes)
-		d.length = htonl(nbits);
+		d.length = htons(nbits);
 		
 		//Sends data over the socket
+		pthread_mutex_lock(&socketMu);			//Locks socket for only write
 		send(socketID, &d, d.length, 0);
+		pthread_mutex_unlock(&socketMu);		//unlocks socket
 	}
 	
 	
@@ -90,30 +98,37 @@ int readTap(int tap_fd, int socketID){
  * tap_fd = the handle of the tap
  * Returns a 1 upon error and returns a 0 upon success
  Assumes the tap was already open*/
-void writeTap(int socketID, int tap_fd){
+int writeTap(int socketID, int tap_fd){
 	fd_set readfds;
 	datagram *msg =(datagram *)malloc(sizeof(datagram));
 	
 	while(1){
 		//waits to receive message from socket
 		FD_ZERO(&readfds);
-		FD_SET(tap_fd, readfds);
-		select(tap_fd+1, &readfs, NULL, NULL, NULL);
+		FD_SET(tap_fd, &readfds);
+		select(tap_fd+1, &readfds, NULL, NULL, NULL);
 		
 		//recieves msg from socket
+		pthread_mutex_lock(&socketMu);		//locks socket for read
 		recv(socketID, msg, 500, 0); 
+		pthread_mutex_unlock(&socketMu);		//unlocks socket
 		
 		//Strips header from msg
-		int length = ntohl(msg.length);
+		int length = ntohs(msg->length);
 		
 		char strippedMsg[500];
-		memcpy(strippedMsg, msg.data, length); 
+		memcpy(strippedMsg, msg->data, length); 
 		
-		if(write(tap_fd, msg.data, length) < 0){
+		//Sends data through tap
+		pthread_mutex_lock(&tapMu);			//locks tap for write
+		int writeError = write(tap_fd, msg->data, length);
+		pthread_mutex_unlock(&tapMu);		//unlocks tap
+		
+		if( writeError< 0){
 			printf("Error: Could not write to tap\n");
 			return 1;
 		}
-	)
+	}
 	
 	return 0;
 	

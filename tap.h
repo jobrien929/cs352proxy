@@ -18,6 +18,11 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
+pthread_t threadtapRID;			//Thread from reading from tap
+pthread_t threadsockRID;		//Thread for reading from socket
+pthread_mutex_t socketMu;		//lock for socket
+pthread_mutex_t tapMu;			//lock for tap
+
 /**************************************************
  * allocate_tunnel: 
  * open a tun or tap device and returns the file
@@ -26,9 +31,9 @@
 int allocate_tunnel(char *dev, int flags);
 
 typedef struct _datagram{
-	unit32_t type;
-	unit32_t length;
-	char data[500];
+	short type;
+	short length;
+	char data[2044];
 } datagram;
 
 /**Continuously reads from the tap and sends what it read into the socket
@@ -49,7 +54,7 @@ int openTap(char * tapName);
  * tap_fd = the handle of the tap
  * Returns a 1 upon error and returns a 0 upon success
  Assumes the tap was already open*/
-void writeTap(int socketID, int tap_fd);
+int writeTap(int socketID, int tap_fd);
 
 
 

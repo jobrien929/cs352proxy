@@ -26,13 +26,10 @@ int main(int argc, char ** argv){
 		//exits entire program upon failure to open tap
 		int tapID;					//Id / handle of the tap
 		if (argc ==2){
-			tapID = openTap(argv[2];
+			tapID = openTap(argv[2]);
 		}else{
 			tapID = openTap(argv[3]);
 		}
-		
-		//opens a socket
-		int socketID = openSocket(port);		//ID / handle of the socket
 		
 		
 		
@@ -41,13 +38,13 @@ int main(int argc, char ** argv){
 		
 		//if device is server then it waits for connection and accepts it
 		//else it establishes a connection
-		int commSocket = socketID; 
+		int commSocket;
 		if(argc == 2){		//If device is server
-			commSocket = acceptConnection(socketID);
+			commSocket = acceptConnection(port);
 		} else{		//If device is client
 			//Checks if the 3rd argument is in DNS format or IPV4
 			char *IP = malloc(sizeof(char)*500);
-			char *IPReal = IP
+			char *IPReal = IP;
 			if(atoi(argv[3])==0){
 				//Converts from DNS format to IPV4
 				struct hostent *converter;
@@ -56,46 +53,45 @@ int main(int argc, char ** argv){
 			}else{
 				IPReal = argv[3];
 			}
-			
-			if(connectToServer(commSocket, argv[s], IPReal) == 0){
+			commSocket = socket(AF_INET, SOCK_STREAM, 0);
+			if(connectToServer(commSocket, port, IPReal) == 0){
 					printf("ERROR: Could not connect to server exiting program");
 					exit(1);
 			}
-			free IP;
+			free(IP);
 		}
+		
+		//creates the mutexes
+		pthread_mutex_init(&socketMu, NULL);
+		pthread_mutex_init(&tapMu, NULL);
 		
 		//thread for reading from tap and sending msg through socket
 		int argt[2];
 		argt[0]=tapID;
 		argt[1]=commSocket;
-		pthread_t threadID;
-		pthread_create(threadID, NULL,readTap,argt);
+		pthread_create(&threadtapRID, NULL,(void *)readTap,argt);
 		
 		//thread for reading from socket and writing to tap
 		int args[2];
 		args[0]=commSocket;
 		args[1]=tapID;
-		pthread_t thread2ID;
-		pthread_create(thread2ID, NULL,writeTap,args);
+		pthread_create(&threadsockRID, NULL,(void *)writeTap,args);
 		
 		int rt;
-		pthread_join(threadID,rt)
+		pthread_join(threadtapRID,(void *)(&rt));
 		if(rt==1){
 			printf("There was an error from reading from tap");
 		}
 		
 		int wt;
-		pthread_join(thread2ID,wt)
+		pthread_join(threadsockRID,(void *)(&wt));
 		if(wt==1){
 			printf("There was an error from writing to tap");
 		}		
 		
 		//Closes Socket and tap
 		close(tapID);
-		close(socketID);
-		if (argc == 2){
-			close(commSocket);
-		}
+		close(commSocket);
 		
 		
 }

@@ -14,7 +14,7 @@ int openSocket(int port) { /*This creates a generic socket, using whatever addre
 
 int connectToServer(int sock, int port, char * name) { /*creates an outgoing connection, using the given socket, the port of the away machine, and the IP address (e.g. 198.162.2.2) of the remote machine. Returns 0 on failure, 1 on success*/
 	struct sockaddr_in servaddr;
-	memset((char *_)&servaddr, 0, sizeof(servaddr));
+	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(port);
 	servaddr.sin_addr.s_addr = inet_addr(name);
@@ -25,19 +25,21 @@ int connectToServer(int sock, int port, char * name) { /*creates an outgoing con
 	return 1;
 }
 
-int acceptConnection(int sock) { //accepts an inbound connection on the specified socket. This accepts ONLY 1 connection request and returns the socket which does the communication on succes, exits the entire program upon failure
-	socklen_t alen;
+int acceptConnection(int port) { //accepts an inbound connection on the specified socket. This accepts ONLY 1 connection request and returns the socket which does the communication on succes, exits the entire program upon failure
+	socklen_t alen = sizeof(struct sockaddr_in);
 	struct sockaddr_in my_addr;
 	struct sockaddr_in client_addr;
-	int sockoptval = 1;
-	int acceptedsocket;
+	int svc;
+	int acceptsocket;
+	
+	svc = openSocket(port);
 	
 	if (listen(svc, 10) < 0) {
 		perror("listen failed");
 		exit(1);
 	}
 	
-	acceptedsocket = accept(sock, (struct sockaddr *)&client_addr, &alen);
+	acceptsocket = accept(svc, (struct sockaddr *)&client_addr, &alen);
 	
 	if(acceptsocket < 0){
 		perror("accept failed");
