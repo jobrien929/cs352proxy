@@ -15,6 +15,8 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <netinet/in.h>
+#include <unistd.h>
 
 /**************************************************
  * allocate_tunnel: 
@@ -22,6 +24,12 @@
  * descriptor to read/write back to the caller
  *****************************************/
 int allocate_tunnel(char *dev, int flags);
+
+typedef struct _datagram{
+	unit32_t type;
+	unit32_t length;
+	char data[500];
+} datagram;
 
 /**Continuously reads from the tap and returns the string it gets from tap
  * Takes the handle of the tap as a parameter for tap_fd
@@ -40,6 +48,8 @@ int openTap(char * tapName);
  * msg = message that needs to be written to the tap
  * tap_fd = the handle of the tap
  Assumes the tap was already open*/
-void writeTap(char *msg, int tap_fd);
+void writeTap(datagram msg, int tap_fd);
+
+
 
 

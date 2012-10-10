@@ -1,5 +1,7 @@
 #include "tap.h"
 #include "socket.h"
+#include <pthread.h>
+#include <semaphore.h>
 
 int main(int argc, char ** argv){
 		//Determins the port of the remote server and local server
@@ -62,17 +64,31 @@ int main(int argc, char ** argv){
 			free IP;
 		}
 		
+		//thread for reading from tap and sending msg through socket
+		int argt[2];
+		argt[0]=tapID;
+		argt[1]=commSocket;
+		pthread_t threadID;
+		pthread_create(threadID, NULL,readTap,argt);
 		
+		//thread for reading from socket and writing to tap
+		int args[2];
+		args[0]=commSocket;
+		args[1]=tapID;
+		pthread_t thread2ID;
+		pthread_create(thread2ID, NULL,writeTap,args);
 		
+		int rt;
+		pthread_join(threadID,rt)
+		if(rt==1){
+			printf("There was an error from reading from tap");
+		}
 		
-		
-		//Begins to Send and receive messages to each other
-		
-		
-		
-		
-		
-		
+		int wt;
+		pthread_join(thread2ID,wt)
+		if(wt==1){
+			printf("There was an error from writing to tap");
+		}		
 		
 		//Closes Socket and tap
 		close(tapID);

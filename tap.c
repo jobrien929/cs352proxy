@@ -1,4 +1,5 @@
 #include "tap.h"
+#include "socket.h"
 
 /**************************************************
  * allocate_tunnel: 
@@ -46,36 +47,74 @@ int openTap(char * tapName){
 	return tap_fd;
 }
 
-/**Continuously reads from the tap and returns the string it gets from tap
+/**Continuously reads from the tap and sends what it read into the socket
+ * Only returns if something goes wrong otherwise loops forever
  * Takes the handle of the tap as a parameter for tap_fd
  * Will take up to 500 bytes from tap otherwise segmentation fault,
  *    but the 500 bytes is adjustable
- * User must remember to free the return
  * Also assumes tap was already opened*/
-char *readTap(int tap_fd){
-	//Malloc for the string that is taken from the tap (takes up to 500 bytes)
-	char *tapEntry = (char*)malloc(sizeof(char) * 500); 
+int readTap(int tap_fd, int socketID){
+	datagram d;
+	fd_set readfds;
 	
+		
 	while(1){
-		if(read(tap_fd, tapEntry,500) < 0){
+		//Waits till tap is ready to be read from
+		FD_ZERO(&readfds);
+		FD_SET(tap_fd, readfds);
+		select(tap_fd+1, &readfs, NULL, NULL, NULL);
+		
+		unit32_t nbits = 0;				//Number of bytes read from the tap
+		if((nbits = read(tap_fd, d.data,500)) < 0){
 			printf("Error: Could not read from tap\n");
-			exit(1);
+			close(tap_fd);
+			return 1;
 		}
+		//Headers for file
+		//type:
+		unit32_t vlanID = %0xABCD;
+		d.type = htonl(vlanID);
+		//length: (this is taken in bytes)
+		d.length = htonl(nbits);
+		
+		//Sends data over the socket
+		send(socketID, &d, d.length, 0);
 	}
-	 
-	return tapEntry
+	
+	
+	return 0;
 }
 
 /**Writes messages into the tap
- * msg = message that needs to be written to the tap
+ * socketID = socket to wait for message
  * tap_fd = the handle of the tap
+ * Returns a 1 upon error and returns a 0 upon success
  Assumes the tap was already open*/
-void writeTap(char *msg, int tap_fd){
-
-
-	if(write(tap_fd, msg, sizeof(msg)) < 0){
-		printf("Error: Could not read from tap\n");
-		exit(1);
-	}
+void writeTap(int socketID, int tap_fd){
+	fd_set readfds;
+	datagram *msg =(datagram *)malloc(sizeof(datagram));
+	
+	while(1){
+		//waits to receive message from socket
+		FD_ZERO(&readfds);
+		FD_SET(tap_fd, readfds);
+		select(tap_fd+1, &readfs, NULL, NULL, NULL);
+		
+		//recieves msg from socket
+		recv(socketID, msg, 500, 0); 
+		
+		//Strips header from msg
+		int length = ntohl(msg.length);
+		
+		char strippedMsg[500];
+		memcpy(strippedMsg, msg.data, length); 
+		
+		if(write(tap_fd, msg.data, sizeof(msg)) < 0){
+			printf("Error: Could not write to tap\n");
+			return 1;
+		}
+	)
+	
+	return 0;
 	
 }
