@@ -109,7 +109,7 @@ void writeTap(int socketID, int tap_fd){
 		char strippedMsg[500];
 		memcpy(strippedMsg, msg.data, length); 
 		
-		if(write(tap_fd, msg.data, sizeof(msg)) < 0){
+		if(write(tap_fd, msg.data, length) < 0){
 			printf("Error: Could not write to tap\n");
 			return 1;
 		}
