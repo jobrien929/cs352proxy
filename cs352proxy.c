@@ -60,6 +60,7 @@ int main(int argc, char* argv[]) {
   int status;
   char *addr;
   char *port;
+  int tcp_sock, rw_sock, tun_sock;
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET; // Use IPv4
@@ -77,9 +78,48 @@ int main(int argc, char* argv[]) {
 
   if((status = getaddrinfo(addr, port, &hints, &res)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+    return(EXIT_FAILURE);
   }
 
+  if((tcp_sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
+    perror("Getting socket");
+    return(EXIT_FAILURE);
+  }
 
+  if(argc == 3) { // I'm a server
+
+    if(bind(tcp_sock, res->ai_addr, res->ai_addrlen) < 0) {
+      perror("Bind");
+      return(EXIT_FAILURE);
+    }
+
+    if(listen(tcp_sock,2) < 0) {
+      perror("Listen");
+      return(EXIT_FAILURE);
+    }
+
+    if((rw_sock = accept(tcp_sock, NULL, NULL)) < 0) {
+      perror("Accept");
+      return(EXIT_FAILURE);
+      }
+
+    printf("Successful connection from client\n");
+
+  } else { // I'm a client
+
+    if(connect(tcp_sock, res->ai_addr, res->ai_addrlen) < 0) {
+      perror("Connect");
+      return(EXIT_FAILURE);
+    }
+
+    printf("Successful connection to server\n");
+
+    rw_sock = tcp_sock;
+    
+  }
+
+  freeaddrinfo(res);
+  close(rw_sock);
 /* create a thread to handle virtual tap device */
 /* create a thread to handle incoming packets on the TCP socket */
 /* Run the thread for the TCP socket, which: */
