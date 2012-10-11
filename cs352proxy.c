@@ -15,9 +15,10 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/time.h>
-#include<stdio.h>
-#include<net/if.h>
-#include<string.h>
+#include <stdio.h>
+#include <net/if.h>
+#include <netdb.h>
+#include <string.h>
 
 /**************************************************
  * allocate_tunnel:
@@ -47,13 +48,38 @@ int allocate_tunnel(char *dev, int flags) {
 }
 
 int main(int argc, char* argv[]) {
-  
-  if(argc < 2 || argc > 3) {
+  printf("argc=%d\n", argc);
+  if(argc < 3 || argc > 4) {
     printf("Invalid arguments.\n");
   }
 
 /* The main thread reads the command line arguments */
 /* Create a TCP socket on the port as defined in the command line. */
+// Set up structures for getaddrinfo
+  struct addrinfo hints, *res;
+  int status;
+  char *addr;
+  char *port;
+
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_INET; // Use IPv4
+  hints.ai_socktype = SOCK_STREAM; //Use tcp
+  if(argc == 3) {  // I'm a server
+    printf("I'm a server\n");
+    hints.ai_flags = AI_PASSIVE;
+    addr = NULL;
+    port = argv[1];
+  } else { // I'm a client
+    printf("I'm a client\n");
+    addr = argv[1];
+    port = argv[2];
+  }
+
+  if((status = getaddrinfo(addr, port, &hints, &res)) != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+  }
+
+
 /* create a thread to handle virtual tap device */
 /* create a thread to handle incoming packets on the TCP socket */
 /* Run the thread for the TCP socket, which: */
@@ -69,4 +95,5 @@ int main(int argc, char* argv[]) {
 /*         Listen for a packet from the tap device */
 /*                 Encapsulate the packet in the proper format */
 /*                 Send the packet to over the TCP socket */
+  return EXIT_SUCCESS;
 }
