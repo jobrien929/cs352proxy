@@ -20,6 +20,13 @@
 #include <netdb.h>
 #include <string.h>
 
+#define PAYLOAD_SIZE 2044
+
+ struct socks_h {
+    int tun_sock;
+    int remote_sock;
+ };
+
 /**************************************************
  * allocate_tunnel:
  * open a tun or tap device and returns the file
@@ -47,6 +54,65 @@ int allocate_tunnel(char *dev, int flags) {
   return fd;
 }
 
+void* outgoing(void* sockets) {
+
+  char *msg[PAYLOAD_SIZE];
+  int msg_length;
+  int sent, sent_total;
+  struct socks_h *socks = (struct socks_h*)sockets;
+
+  while(1) {
+    if((msg_length = read(socks->tun_sock, msg, PAYLOAD_SIZE)) < 0) {
+      perror("Outgoing recv");
+      exit(EXIT_FAILURE);
+    }
+    printf("Received %d bytes from tap\n", msg_length);
+    sent_total = 0;
+    do {
+      if((sent = write(socks->remote_sock, msg+sent_total, msg_length - sent_total)) < 0) {
+	perror("Outgoing send");
+	exit(EXIT_FAILURE);	
+      }
+      sent_total += sent;
+    } while(sent_total < msg_length);
+
+    printf("Sent %d bytes to tunnel\n", sent_total);
+
+  }
+  printf("Exiting outgoing thread\n");
+  return NULL;
+}
+
+void* incoming(void* sockets) {
+
+  char *msg[PAYLOAD_SIZE];
+  int msg_length;
+  int sent, sent_total;
+  struct socks_h *socks = (struct socks_h*)sockets;
+
+  while(1) {
+    if((msg_length = read(socks->remote_sock, msg, PAYLOAD_SIZE)) < 0) {
+      perror("Incoming recv");
+      exit(EXIT_FAILURE);
+    }
+    printf("Received %d bytes from tunnel\n", msg_length);
+    sent_total = 0;
+    do {
+      if((sent = write(socks->tun_sock, msg+sent_total, msg_length - sent_total)) < 0) {
+	perror("Incoming send");
+	exit(EXIT_FAILURE);
+      }
+      sent_total += sent;
+    } while(sent_total < msg_length);
+
+    printf("Sent %d bytes to tap\n", sent_total);
+
+  }
+  printf("Exiting outgoing thread\n");
+
+  return NULL;
+}
+
 int main(int argc, char* argv[]) {
   printf("argc=%d\n", argc);
   if(argc < 3 || argc > 4) {
@@ -57,10 +123,11 @@ int main(int argc, char* argv[]) {
 /* Create a TCP socket on the port as defined in the command line. */
 // Set up structures for getaddrinfo
   struct addrinfo hints, *res;
-  int status;
+  int status, connect_sock;
   char *addr;
   char *port;
-  int tcp_sock, rw_sock, tun_sock;
+  struct socks_h socks;
+  pthread_t  tid_incoming, tid_outgoing;
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET; // Use IPv4
@@ -81,24 +148,24 @@ int main(int argc, char* argv[]) {
     return(EXIT_FAILURE);
   }
 
-  if((tcp_sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
+  if((connect_sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
     perror("Getting socket");
     return(EXIT_FAILURE);
   }
 
   if(argc == 3) { // I'm a server
 
-    if(bind(tcp_sock, res->ai_addr, res->ai_addrlen) < 0) {
+    if(bind(connect_sock, res->ai_addr, res->ai_addrlen) < 0) {
       perror("Bind");
       return(EXIT_FAILURE);
     }
-
-    if(listen(tcp_sock,2) < 0) {
+ 
+    if(listen(connect_sock,2) < 0) {
       perror("Listen");
       return(EXIT_FAILURE);
     }
 
-    if((rw_sock = accept(tcp_sock, NULL, NULL)) < 0) {
+    if((socks.remote_sock = accept(connect_sock, NULL, NULL)) < 0) {
       perror("Accept");
       return(EXIT_FAILURE);
       }
@@ -107,19 +174,34 @@ int main(int argc, char* argv[]) {
 
   } else { // I'm a client
 
-    if(connect(tcp_sock, res->ai_addr, res->ai_addrlen) < 0) {
+    if(connect(connect_sock, res->ai_addr, res->ai_addrlen) < 0) {
       perror("Connect");
       return(EXIT_FAILURE);
     }
 
-    printf("Successful connection to server\n");
+    socks.remote_sock = connect_sock;
 
-    rw_sock = tcp_sock;
+    printf("Successful connection to server\n");
     
   }
 
+if ( (socks.tun_sock = allocate_tunnel(argv[argc-1], IFF_TAP | IFF_NO_PI)) < 0 ) {
+    perror("Opening tap interface failed! \n");
+    exit(1);
+  }
+
+  pthread_create(&tid_outgoing, NULL, outgoing, (void *)&socks);
+  pthread_create(&tid_incoming, NULL, incoming, (void *)&socks);
+
+  pthread_join(tid_incoming, NULL);
+  pthread_join(tid_outgoing, NULL);
+
+
+
+
+
+
   freeaddrinfo(res);
-  close(rw_sock);
 /* create a thread to handle virtual tap device */
 /* create a thread to handle incoming packets on the TCP socket */
 /* Run the thread for the TCP socket, which: */
