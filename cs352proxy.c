@@ -21,6 +21,7 @@
 #include <string.h>
 
 #define PAYLOAD_SIZE 2044
+#define HEADER_SIZE 4
 
  struct socks_h {
     int tun_sock;
@@ -54,19 +55,39 @@ int allocate_tunnel(char *dev, int flags) {
   return fd;
 }
 
+void readn(int fd, char *buf, int length) {
+  int received;
+  int received_total = 0;
+  do {
+    if((received = read(fd, buf+received_total, length - received_total)) < 0) {
+      perror("readn");
+      exit(EXIT_FAILURE);
+    }
+    received_total += received;
+  } while(received_total < length);
+
+  return;
+}
+
 void* outgoing(void* sockets) {
 
-  char *msg[PAYLOAD_SIZE];
-  int msg_length;
+  char msg[PAYLOAD_SIZE + HEADER_SIZE];
+  ushort msg_length;
   int sent, sent_total;
+  ushort *len_ptr, *type_ptr;
   struct socks_h *socks = (struct socks_h*)sockets;
 
   while(1) {
-    if((msg_length = read(socks->tun_sock, msg, PAYLOAD_SIZE)) < 0) {
+    if((msg_length = read(socks->tun_sock, msg+HEADER_SIZE, PAYLOAD_SIZE)) < 0) {
       perror("Outgoing recv");
       exit(EXIT_FAILURE);
     }
-    printf("Received %d bytes from tap\n", msg_length);
+    type_ptr = (ushort*)msg;
+    len_ptr = (ushort*)msg+2;
+    *type_ptr = htons(0xabcd);
+    *len_ptr = htons(msg_length);
+    printf("Received %u bytes from tap\ttype %x\n", ntohs(*len_ptr), ntohs(*type_ptr));
+    msg_length += HEADER_SIZE;
     sent_total = 0;
     do {
       if((sent = write(socks->remote_sock, msg+sent_total, msg_length - sent_total)) < 0) {
@@ -85,17 +106,19 @@ void* outgoing(void* sockets) {
 
 void* incoming(void* sockets) {
 
-  char *msg[PAYLOAD_SIZE];
-  int msg_length;
+  char msg[PAYLOAD_SIZE];
+  ushort type, msg_length, *type_ptr, *len_ptr;
   int sent, sent_total;
   struct socks_h *socks = (struct socks_h*)sockets;
 
   while(1) {
-    if((msg_length = read(socks->remote_sock, msg, PAYLOAD_SIZE)) < 0) {
-      perror("Incoming recv");
-      exit(EXIT_FAILURE);
-    }
-    printf("Received %d bytes from tunnel\n", msg_length);
+    readn(socks->remote_sock, msg, HEADER_SIZE);  // Read next header
+    type_ptr = (ushort*)msg;
+    len_ptr = (ushort*)msg+2;
+    type = ntohs(*type_ptr);
+    msg_length = ntohs(*len_ptr);
+    printf("Received header from tunnel: type %x\tlength: %u \n", type, msg_length);
+    readn(socks->remote_sock, msg, msg_length);
     sent_total = 0;
     do {
       if((sent = write(socks->tun_sock, msg+sent_total, msg_length - sent_total)) < 0) {
