@@ -1,0 +1,48 @@
+Group Members:
+  Joseph Song
+	Joshua Gang
+	John O'Brien
+
+Contributions:
+	Joshua Gang: Draft for socket functions
+	Joseph Song: Draft for Tap functions and sending data through socket
+		     Draft for main function
+		     Documentation
+	John O'Brien: Final Draft to combine all functions
+		      Makefile
+
+Architecture Description (Function Name: Description):
+	allocate tunnel: function given to us for assignment, 
+	outgoing: Reads from the TAP and send the proper data through the SOCKET (this repeats forever unless there is an error)
+		  !!!!!!!!If there is an error it closes the tap and socket
+		  Exits upon error of reading from the tap or writing to the socket after it prints the error
+		  Prints how much data(in bytes) was read from the tap and how much data was sent through the socket
+		  Ecapsulates the data with a header (type: 0xABCD length:__length of data(bytes)__) before sending it out
+	incoming: Recieves data from the SOCKET and writes it to the TAP (this repeats forever unless there is an error)
+		  !!!!!!!!If there is an error it closes the tap and socket
+		  Exits upon error of receiving data from the socket or writing to the tap after it prints the error
+		  Prints how much data(in bytes) was received from the socket and how much data was written to the tap
+		  De-ecapsulates the header(type: 0xABCD length:__length of data(bytes)__) from the data before writing
+		  	to the tap
+	main:
+	  1) Using the arguments provided by argv it determins whether it is a server or a client
+	  
+	  Client (Exits on error if any of these steps fail):
+		2) Gets the IP Address of the server (converts the DNS host name to IPV4 dot decimal format if necessary)
+		3) Creates file descriptor for socket
+		4) Attempts to connect to server
+		
+	  Server (Exits on error if any of these steps fail)
+		2) Binds the socket
+		3) Listens for a request to connect from client
+		4) Accepts connection from client
+	  
+	  main continued:
+		5) Opens the tap interface
+		6) Starts the thread for outgoing function
+		7) Starts the thread for incoming function
+		8) Waits for incoming and outgoing function returns which should never happen since they run forever
+
+Difficulties (Problem:Solution):
+	Understanding how to properly use the tap and properly setting it up : Just by playing with the tap
+	Finding time to meet with group mem
