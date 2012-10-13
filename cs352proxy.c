@@ -73,6 +73,7 @@ void* outgoing(void* sockets) {
 
   char msg[PAYLOAD_SIZE + HEADER_SIZE];
   ushort msg_length;
+  ushort type = 0xabcd;
   int sent, sent_total;
   ushort *len_ptr, *type_ptr;
   struct socks_h *socks = (struct socks_h*)sockets;
@@ -84,7 +85,7 @@ void* outgoing(void* sockets) {
     }
     type_ptr = (ushort*)msg;
     len_ptr = (ushort*)msg+2;
-    *type_ptr = htons(0xabcd);
+    *type_ptr = htons(type);
     *len_ptr = htons(msg_length);
     printf("Received %u bytes from tap\ttype %x\n", ntohs(*len_ptr), ntohs(*type_ptr));
     msg_length += HEADER_SIZE;
@@ -107,16 +108,16 @@ void* outgoing(void* sockets) {
 void* incoming(void* sockets) {
 
   char msg[PAYLOAD_SIZE];
-  ushort type, msg_length, *type_ptr, *len_ptr;
+  ushort type, msg_length;
   int sent, sent_total;
   struct socks_h *socks = (struct socks_h*)sockets;
 
   while(1) {
     readn(socks->remote_sock, msg, HEADER_SIZE);  // Read next header
-    type_ptr = (ushort*)msg;
-    len_ptr = (ushort*)msg+2;
-    type = ntohs(*type_ptr);
-    msg_length = ntohs(*len_ptr);
+    sscanf(msg, "%hu", &type);
+    sscanf(msg+2, "%hu", &msg_length);
+    type = ntohs(type);
+    msg_length = ntohs(msg_length);
     printf("Received header from tunnel: type %x\tlength: %u \n", type, msg_length);
     readn(socks->remote_sock, msg, msg_length);
     sent_total = 0;
