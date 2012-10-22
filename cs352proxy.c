@@ -21,12 +21,17 @@
 #include <string.h>
 
 #define PAYLOAD_SIZE 2044
-#define HEADER_SIZE 4
+#define TYPE_SIZE 2
+#define LENGTH_SIZE 2
+#define HEADER_SIZE (TYPE_SIZE + LENGTH_SIZE)
 
- struct socks_h {
-    int tun_sock;
-    int remote_sock;
- };
+
+/* Structure for sending socket file descriptors to input  */
+/* and output threads */ 
+struct socks_h {
+  int tun_sock;
+  int remote_sock;
+};
 
 /**************************************************
  * allocate_tunnel:
@@ -55,6 +60,9 @@ int allocate_tunnel(char *dev, int flags) {
   return fd;
 }
 
+
+/* Reads exactly length bytes from fd into *buf. */
+/* Does not return until length bytes have been read. */
 void readn(int fd, char *buf, int length) {
   int received;
   int received_total = 0;
@@ -69,28 +77,40 @@ void readn(int fd, char *buf, int length) {
   return;
 }
 
+
+/* Function to run thread that receives data from the tap, */
+/* encapsulates it, and sends it thru the tunnel. sockets should
+   be a pointer to a socks_h structure holding the socket 
+   file descriptors. */
 void* outgoing(void* sockets) {
 
   char msg[PAYLOAD_SIZE + HEADER_SIZE];
-  ushort msg_length;
+  int  msg_length;
   ushort type = 0xabcd;
   int sent, sent_total;
   ushort *len_ptr, *type_ptr;
   struct socks_h *socks = (struct socks_h*)sockets;
 
-  while(1) {
+  while(1) {  //keep checking forever
+    
+    // Get data from tap
     if((msg_length = read(socks->tun_sock, msg+HEADER_SIZE, PAYLOAD_SIZE)) < 0) {
       perror("Outgoing recv");
       exit(EXIT_FAILURE);
     }
+
+    // Encapsulate data
     type_ptr = (ushort*)msg;
-    len_ptr = (ushort*)msg+2;
+    len_ptr = (ushort*)(msg+TYPE_SIZE);
     *type_ptr = htons(type);
     *len_ptr = htons(msg_length);
-    printf("Received %u bytes from tap\ttype %x\n", ntohs(*len_ptr), ntohs(*type_ptr));
+
+    printf("Received %u bytes from tap\ttype %x\n", ntohs(*(ushort*)(msg+2)), ntohs(*(ushort*)msg));
+    
+    // Send packet thru tunnel
     msg_length += HEADER_SIZE;
     sent_total = 0;
-    do {
+    do { // Loop until the entire packet has been sent
       if((sent = write(socks->remote_sock, msg+sent_total, msg_length - sent_total)) < 0) {
 	perror("Outgoing send");
 	exit(EXIT_FAILURE);	
@@ -105,6 +125,11 @@ void* outgoing(void* sockets) {
   return NULL;
 }
 
+
+/* Function to run thread that receives packets from the tunnel,
+   strips off the header, and sends the to the tap.  sockets should
+   be a pointer to a socks_h structure holding the socket 
+   file descriptors. */
 void* incoming(void* sockets) {
 
   char msg[PAYLOAD_SIZE];
@@ -112,16 +137,22 @@ void* incoming(void* sockets) {
   int sent, sent_total;
   struct socks_h *socks = (struct socks_h*)sockets;
 
-  while(1) {
-    readn(socks->remote_sock, msg, HEADER_SIZE);  // Read next header
-    sscanf(msg, "%hu", &type);
-    sscanf(msg+2, "%hu", &msg_length);
-    type = ntohs(type);
-    msg_length = ntohs(msg_length);
+  while(1) {  // Loop forever
+
+    // Get next header
+    readn(socks->remote_sock, msg, HEADER_SIZE);
+
+    // Get packet type and length
+    type = ntohs(*(ushort*)msg);
+    msg_length = ntohs(*(ushort*)(msg+TYPE_SIZE));
     printf("Received header from tunnel: type %x\tlength: %u \n", type, msg_length);
+    
+    // Get packet payload
     readn(socks->remote_sock, msg, msg_length);
+    
+    // Send payload to tap
     sent_total = 0;
-    do {
+    do { // Keep sending until entire payload has been sent
       if((sent = write(socks->tun_sock, msg+sent_total, msg_length - sent_total)) < 0) {
 	perror("Incoming send");
 	exit(EXIT_FAILURE);
@@ -138,14 +169,14 @@ void* incoming(void* sockets) {
 }
 
 int main(int argc, char* argv[]) {
+
+  // Check for correct syntax
   printf("argc=%d\n", argc);
   if(argc < 3 || argc > 4) {
     printf("Invalid arguments.\n");
   }
 
-/* The main thread reads the command line arguments */
-/* Create a TCP socket on the port as defined in the command line. */
-// Set up structures for getaddrinfo
+
   struct addrinfo hints, *res;
   int status, connect_sock;
   char *addr;
@@ -153,6 +184,7 @@ int main(int argc, char* argv[]) {
   struct socks_h socks;
   pthread_t  tid_incoming, tid_outgoing;
 
+  // Set up structure for getaddrinfo
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET; // Use IPv4
   hints.ai_socktype = SOCK_STREAM; //Use tcp
@@ -167,11 +199,13 @@ int main(int argc, char* argv[]) {
     port = argv[2];
   }
 
+  // getaddrinfo will populate res with the connection info
   if((status = getaddrinfo(addr, port, &hints, &res)) != 0) {
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
     return(EXIT_FAILURE);
   }
 
+  // Create socket
   if((connect_sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
     perror("Getting socket");
     return(EXIT_FAILURE);
@@ -189,10 +223,11 @@ int main(int argc, char* argv[]) {
       return(EXIT_FAILURE);
     }
 
+    // Put file descriptor for the connection into the socks struct
     if((socks.remote_sock = accept(connect_sock, NULL, NULL)) < 0) {
       perror("Accept");
       return(EXIT_FAILURE);
-      }
+    }
 
     printf("Successful connection from client\n");
 
@@ -203,43 +238,32 @@ int main(int argc, char* argv[]) {
       return(EXIT_FAILURE);
     }
 
+    // Put file descriptor for the connection into the socks struct
     socks.remote_sock = connect_sock;
 
     printf("Successful connection to server\n");
     
   }
 
-if ( (socks.tun_sock = allocate_tunnel(argv[argc-1], IFF_TAP | IFF_NO_PI)) < 0 ) {
+  // Put file descriptor for the tap into the socks struct
+  if ( (socks.tun_sock = allocate_tunnel(argv[argc-1], IFF_TAP | IFF_NO_PI)) < 0 ) {
     perror("Opening tap interface failed! \n");
     exit(1);
   }
 
+  // Free the addrinfo structure
+  freeaddrinfo(res);
+
+
+  // Create thread to process outgoing data
   pthread_create(&tid_outgoing, NULL, outgoing, (void *)&socks);
+  // Create thread to process incoming data  
   pthread_create(&tid_incoming, NULL, incoming, (void *)&socks);
 
+  // These might be useful if the threads didn't loop forever
   pthread_join(tid_incoming, NULL);
   pthread_join(tid_outgoing, NULL);
 
 
-
-
-
-
-  freeaddrinfo(res);
-/* create a thread to handle virtual tap device */
-/* create a thread to handle incoming packets on the TCP socket */
-/* Run the thread for the TCP socket, which: */
-/*         If it is the server mode proxy, listen on the port, else */
-/*                 connect to the other proxy */
-/*         Loop forever: */
-/*         listen for packets from the TCP socket */
-/*                 when a packet arrives, de-encapsulate the packet */
-/* send it to the local tap device */
- 
-/* Run the thread for the  tap device, which: */
-/*         Loop forever: */
-/*         Listen for a packet from the tap device */
-/*                 Encapsulate the packet in the proper format */
-/*                 Send the packet to over the TCP socket */
   return EXIT_SUCCESS;
 }
