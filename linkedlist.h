@@ -16,6 +16,8 @@ struct llholder {
 };
 typedef struct llholder * linkedListHolder;
 
+linkedListHolder create();
+
 void add(linkedListHolder list, void * data, int key);
 
 void * get(linkedListHolder list, int key);

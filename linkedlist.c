@@ -3,6 +3,12 @@
 #include <malloc.h>
 #include "linkedlist.h"
 
+linkedListHolder create() {
+	linkedListHolder ans = (linkedListHolder)malloc(sizeof(struct llholder));
+	ans->head = 0;
+	return ans;
+}
+
 void add(linkedListHolder list, void * data, int key) {
 	linkedList insert = (linkedList)malloc(sizeof(struct ll));
 	insert->key = key;
