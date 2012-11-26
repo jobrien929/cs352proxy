@@ -16,6 +16,8 @@ int linkTimeout;
 int quitAfter;
 
 
+//Please define each function in the header as well
+
 /**readConfigFile reads the configuration file required to run the VLAN
  * program.
  * Parameters: 
