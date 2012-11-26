@@ -2,6 +2,9 @@
 //may call these functions and there is a mutex lock called membershipListMutex
 //that locks down the membershipList when it is in use
 
+//NOTE membershipList MUTEX (already exist in header file MUST BE INITITIALIZED
+//IN MAIN B4 USE OF ANY OF THESE FUNCTIONS!!!
+
 #include "MembershipList.h"
 
 
