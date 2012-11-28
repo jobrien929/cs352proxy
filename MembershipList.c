@@ -1,9 +1,4 @@
-//NOTE:Though these functions are NOT thread functions, thread functions
-//may call these functions and there is a mutex lock called membershipListMutex
-//that locks down the membershipList when it is in use
 
-//NOTE membershipList MUTEX (already exist in header file MUST BE INITITIALIZED
-//IN MAIN B4 USE OF ANY OF THESE FUNCTIONS!!!
 
 #include "MembershipList.h"
 
@@ -37,9 +32,7 @@ int addMember(char *Name, int expires, time_t timeIn,linkedListHolder membership
 	newMember->timeOut = timeIn + expires;
 	
 	//Adds member to membershipList
-	pthread_mutex_lock(&membershipListMutex);
 	add(membershipList, newMember, newMember->timeOut);
-	pthread_mutex_unlock(&membershipListMutex);
 	
 	return 0;
 }
@@ -52,7 +45,6 @@ int addMember(char *Name, int expires, time_t timeIn,linkedListHolder membership
  * returns:0 on success 1 on failure**/
 int removeMember(char *Name, linkedListHolder membershipList){
 	
-	pthread_mutex_lock(&membershipListMutex);
 	if (membershipList==NULL){
 		printf("Error: User sent in a bad membershipList\n");
 		return 1;
@@ -80,7 +72,6 @@ int removeMember(char *Name, linkedListHolder membershipList){
 		}
 		ptr = ptr->next;
 	}while(ptr!=membershipList->head);
-	pthread_mutex_unlock(&membershipListMutex);
 	
 	printf("Error: Could not find member in the membership list\n");
 	return 1;
@@ -91,7 +82,6 @@ int removeMember(char *Name, linkedListHolder membershipList){
  * membershipList - list of proxies within VLAN
  * returns: number of removed proxies**/
 int removeExpired(linkedListHolder membershipList){
-	pthread_mutex_lock(&membershipListMutex);
 	if (membershipList==NULL){
 		printf("Error: User sent in a bad membershipList\n");
 		return 0;
@@ -122,6 +112,5 @@ int removeExpired(linkedListHolder membershipList){
 		}
 		ptr = ptr->next;
 	}while(ptr!=membershipList->head);
-	pthread_mutex_unlock(&membershipListMutex);
 	return count;
 }

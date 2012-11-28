@@ -5,10 +5,6 @@
 #include <string.h>
 #include <pthread.h>
 
-//global variables
-pthread_mutex_t membershipListMutex;		//Mutex for when membershipList is accessed
-											//MUTEX MUST BE INITIALIZED IN MAIN B4 USE!!!
-
 /**Node structure in linklist that holds each member of the membership
  * list**/
 typedef struct Node{
